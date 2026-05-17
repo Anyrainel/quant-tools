@@ -100,6 +100,7 @@ Not built yet. Agent runs tools but doesn't notify when something important chan
 - [x] Split into two repos: quant-principles (wiki) and quant-tools (programmatic)
 - [x] Add thin CLI entry point (quant.py)
 - [x] Add shared data models in core/models.py
+- [x] Remove rules.yaml — principles live in wiki, agent maps signals to wiki directly
 
 ## Open Questions
 - How often should tracker.py evaluate run? (monthly? quarterly? event-driven?)
