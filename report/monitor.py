@@ -54,10 +54,11 @@ def diff_scorecards(new_sc: dict, prev_sc: dict) -> dict:
     old_list = [old_regime.get(k) for k in ("cycle_stage", "stress_direction", "inflation_regime")]
     regime_changed = old_list != new_list
 
-    new_fired = {r["id"] for r in new_sc.get("rules_fired", [])}
-    old_fired = {r["id"] for r in prev_sc.get("rules_fired", [])}
-    new_rules = sorted(new_fired - old_fired)
-    cleared_rules = sorted(old_fired - new_fired)
+    # Wiki readings changed
+    new_readings = set(new_sc.get("wiki_readings", []))
+    old_readings = set(prev_sc.get("wiki_readings", []))
+    new_wiki = sorted(new_readings - old_readings)
+    cleared_wiki = sorted(old_readings - new_readings)
 
     # Indicator threshold crossings (>10% relative change)
     crossings = []
@@ -82,8 +83,8 @@ def diff_scorecards(new_sc: dict, prev_sc: dict) -> dict:
         "regime_changed": regime_changed,
         "old_regime": old_list,
         "new_regime": new_list,
-        "new_rules_fired": new_rules,
-        "rules_cleared": cleared_rules,
+        "new_wiki_readings": new_wiki,
+        "wiki_readings_cleared": cleared_wiki,
         "threshold_crossings": crossings,
     }
 
@@ -91,7 +92,7 @@ def diff_scorecards(new_sc: dict, prev_sc: dict) -> dict:
 def determine_alert_level(diff: dict) -> str:
     if diff["regime_changed"]:
         return "urgent"
-    if diff["new_rules_fired"] or diff["rules_cleared"]:
+    if diff.get("new_wiki_readings") or diff.get("wiki_readings_cleared"):
         return "warning"
     if diff["threshold_crossings"]:
         return "info"
@@ -108,9 +109,8 @@ def one_line_summary(today_str: str, alert: dict) -> str:
         indicators = ", ".join(t["indicator"] for t in alert["threshold_crossings"][:3])
         return f"[{today_str}] MONITOR INFO — {len(alert['threshold_crossings'])} indicator(s) moved >10%: {indicators}"
     if level == "warning":
-        new_r = alert["new_rules_fired"]
-        clr_r = alert["rules_cleared"]
-        return f"[{today_str}] MONITOR WARNING — new rules: {new_r}, cleared: {clr_r}"
+        new_readings = alert.get("new_wiki_readings", [])
+        return f"[{today_str}] MONITOR WARNING — new wiki readings: {new_readings}"
     return f"[{today_str}] MONITOR URGENT — regime changed {alert['old_regime']} → {alert['new_regime']}"
 
 

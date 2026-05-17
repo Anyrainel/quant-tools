@@ -105,24 +105,27 @@ Run `flag` when:
 2. **Read signals**
    - Load `data/scorecard.json`
    - Note regime tuple (debt_cycle, stress, inflation)
-   - Note any fired rules from `report check`
+   - Note `wiki_readings` from gauge output — these are the wiki chapters to read
 
 3. **Query wiki**
-   - Map regime to relevant chapters:
-     - debt_cycle → `dalio/01-debt-cycle-mechanics/`, `dalio/05-sovereign-debt-stress/`
-     - stress → `dalio/02-deleveraging-playbook/`, `dalio/07-current-macro-position/`
-     - inflation → `dalio/03-currency-monetary-systems/`, `dalio/08-asset-returns-and-positioning/`
-   - Read chapter index for gestalt, mid files for specifics
+   - Read the chapters listed in `wiki_readings`
+   - For each chapter: read index.md for gestalt, then relevant mid files
    - Note relevant atoms by ID
+   - The mapping is in `gauge.py check_rules()` — regime axes map to chapters automatically
 
 4. **Read portfolio**
    - Load `data/holdings.json`
-   - Compare allocation to `portfolio/allocations.yaml` targets
+   - Load `portfolio/allocations.yaml` for neutral weights + regime tilts
+   - Compute target allocation: neutral + tilts for current regime
+   - Compare to actual holdings
    - Note drift, concentration, drawdown
 
 5. **Generate recommendations**
-   - Cross-reference fired rules with wiki principles
-   - Compare current allocation to principle-guided target
+   - Cross-reference wiki principles with computed target allocation
+   - The wiki provides the "should" (principles for this regime)
+   - allocations.yaml provides the "baseline" (human's neutral + tilts)
+   - When they conflict: wiki wins for regime-specific guidance, allocations.yaml wins for long-term baseline
+   - Document any tension in `history/tracker.py reflect`
    - Produce specific actions (increase/decrease/hold/exit/enter) with targets
    - Assign confidence (low/medium/high)
    - Document reasoning: which signals, which principles, which expectations
@@ -130,6 +133,7 @@ Run `flag` when:
 6. **Record decision**
    - Run `history.tracker record` with rule, action, target, basis
    - Include expected regime shift and timeframe
+   - This is MANDATORY — no recommendation without a record
 
 7. **Present to human**
    - Structured summary: regime, portfolio state, recommendations, confidence
@@ -157,17 +161,22 @@ Use OpenClaw native cron, not Python schedulers. The agent wakes, decides what t
 - Purpose: Fresh data for the day
 - Action: Run `quant.py signals run`, save to `data/scorecard.json`
 - Delivery: None (silent update, data ready when human asks)
+- Note: If regime changed from yesterday, note it in memory
 
 **Weekly (Sunday 6:00 PM PT)**
 - Purpose: Full weekly assessment
 - Action: Run `quant.py full`, then `quant.py report generate`
-- Delivery: Summarize regime + any fired rules to Discord
-- Condition: Only deliver if regime changed or rules fired since last week
+- Delivery: Summarize regime + wiki_readings to Discord
+- Condition: Only deliver if regime changed or wiki_readings changed since last week
 
 **Monthly (1st of month, 9:00 AM PT)**
 - Purpose: Decision review and principle health check
-- Action: Run `history.tracker stats` and `history.tracker flag`
-- Delivery: Principle accuracy summary + flagged principles to Discord
+- Action: 
+  1. Run `history.tracker list --status overdue` — find unevaluated decisions
+  2. Run `history.tracker list --status evaluated` — review recent outcomes
+  3. Agent reads outcomes, writes reflections via `tracker.py reflect`
+  4. Summarize patterns for human review
+- Delivery: Reflection summary + any principles needing attention to Discord
 
 ### Cron Payload Example
 
@@ -186,13 +195,13 @@ See OpenClaw cron docs for exact syntax. Set `sessionTarget: current` to bind to
 
 | File | Path | Purpose | Update Frequency |
 |------|------|---------|-----------------|
-| scorecard.json | `data/scorecard.json` | Latest regime reading | Daily (signals run) |
+| scorecard.json | `data/scorecard.json` | Latest regime reading + wiki_readings | Daily (signals run) |
 | holdings.json | `data/holdings.json` | Portfolio snapshot | After trades (portfolio sync) |
 | decisions.jsonl | `history/decisions.jsonl` | Decision log | Per recommendation |
 | outcomes.jsonl | `history/outcomes.jsonl` | Outcome log | Per evaluation |
-| allocations.yaml | `portfolio/allocations.yaml` | Target allocation | Manual (human sets) |
+| journal.jsonl | `history/journal.jsonl` | Agent reflections | As needed |
+| allocations.yaml | `portfolio/allocations.yaml` | Target allocation (neutral + tilts) | Manual (human sets) |
 | config.yaml | `signals/config.yaml` | Indicator config | Rare (schema change) |
-| rules.yaml | `signals/rules.yaml` | Regime rules | When principles evolve |
 
 ---
 
@@ -202,26 +211,37 @@ See OpenClaw cron docs for exact syntax. Set `sessionTarget: current` to bind to
 1. Check `data/scorecard.json` staleness
 2. If stale, `quant.py signals run`
 3. Read scorecard, summarize regime tuple + key indicators
+4. Read `wiki_readings` to know which wiki chapters are relevant
 
 ### "Should I rebalance?"
 1. `quant.py full` (fresh data)
 2. `quant.py portfolio rebalance` (drift check)
-3. Read wiki chapters for current regime
-4. Compare current allocation to principle-guided targets
-5. Generate specific trade list with sizing
-6. `history.tracker record` the recommendation
-7. Present to human for approval
+3. Read wiki chapters from `wiki_readings`
+4. Compute target from `allocations.yaml`: neutral + regime tilts
+5. Compare current allocation to target
+6. Cross-reference with wiki principles
+7. When wiki and allocations.yaml conflict: document tension via `tracker.py reflect`
+8. Generate specific trade list with sizing
+9. `history.tracker record` the recommendation
+10. Present to human for approval
 
 ### "How accurate are our principles?"
-1. `history.tracker stats`
-2. `history.tracker flag`
-3. Read `content/reflection/principle-scores.md`
-4. Summarize: total invocations, accuracy, flagged principles
+1. `history.tracker list --status evaluated`
+2. Read outcomes, compare to expectations
+3. Write reflections via `tracker.py reflect`
+4. Summarize patterns for human review
+
+### "I want to debate a decision"
+1. Read relevant wiki chapters (from `wiki_readings`)
+2. Write bull case: `tracker.py reflect --topic debate --content "FOR: ..."`
+3. Write bear case: `tracker.py reflect --topic debate --content "AGAINST: ..."`
+4. Review both, write synthesis: `tracker.py reflect --topic debate --content "RESOLUTION: ..."`
+5. The reflection log is the debate record
 
 ### "Add a new signal source"
 1. Add fetcher to `signals/` (new .py file or extend gauge.py)
 2. Add indicator to `signals/config.yaml`
-3. Add rule to `signals/rules.yaml` if threshold-based
+3. Update `gauge.py check_rules()` to map new indicator to relevant wiki chapters
 4. Update BLUEPRINT capabilities section
 5. Test with `quant.py signals pull`
 

@@ -17,17 +17,10 @@ Current backtests (`tests/backtest.py`, `tests/backtest_full.py`) need to reach 
 - [ ] Track in TODO: some signals lack historical data for long backtests — need better data sources
 
 ### 2. Debate / Multi-Perspective Analysis
-`report/debate.py` exists but is skeletal. This is a **process concept**, not a code concept.
+**Status: Process, not code.** The agent writes bull/bear/reflection entries via `tracker.py reflect --topic debate`.
 
-- [ ] Design: multi-agent vs single-agent debate
-  - Option A: Multiple agents, each with a different lens (macro, technical, fundamental, contrarian)
-  - Option B: Single agent, forced to argue both sides before deciding
-  - Risk: putting all perspectives in one context window may bias synthesis
-- [ ] If multi-agent: define agent roles, process for independent analysis, then weighted aggregation
-- [ ] If single-agent: structure as explicit "argue for / argue against / resolution" steps
-- [ ] Weighting: by historical accuracy of each perspective (requires tracking)
-- [ ] Output: structured debate summary with confidence per perspective
-- [ ] Track in TODO: debate is currently only about categorical balance (asset classes). Future: stock selection, timing, etc. will need different debate structure.
+- [ ] Document debate process in HANDBOOK: agent reads wiki, writes FOR/AGAINST/RESOLUTION reflections
+- [ ] Future: if multi-agent needed, design independent agents with isolated context windows
 
 ### 3. Signal Quality / Staleness Tracking
 `signals/gauge.py` pulls data but doesn't systematically track quality.
@@ -41,70 +34,78 @@ Current backtests (`tests/backtest.py`, `tests/backtest_full.py`) need to reach 
 
 ## Medium Priority
 
-### 4. Portfolio Mix Analysis
-`portfolio/rebalance.py` checks drift, but doesn't deeply analyze the portfolio's risk structure.
+### 4. Portfolio Mix Analysis + Construction
+`portfolio/rebalance.py` checks drift, but doesn't deeply analyze risk structure. `portfolio/allweather.py` computes neutral weights but isn't integrated.
 
-- [ ] Add risk-parity analysis (is the portfolio actually balanced by risk contribution?)
+- [ ] Merge allweather.py logic into rebalance.py or make rebalance call allweather
+- [ ] Add risk-parity analysis (is portfolio balanced by risk contribution?)
 - [ ] Add correlation matrix of current holdings
 - [ ] Add concentration risk analysis (single name, single sector, single country)
 - [ ] Add factor exposure analysis (value, growth, momentum, quality)
 - [ ] Add tail risk analysis (skew, kurtosis, VaR, CVaR)
 - [ ] Track in TODO: knowing we should increase/decrease an asset class is not enough — need action determination (which holdings, tax considerations, timing)
 
-### 5. Rules.yaml Enhancement
-`signals/rules.yaml` has 14 rules. Needs versioning and testing infrastructure.
+### 5. allocations.yaml — Relationship to Wiki
+`allocations.yaml` is the human's **ephemeral baseline** — neutral weights + regime tilts. It is:
+- Versioned in repo (as config)
+- Adjustable by human (not immutable like wiki)
+- The "implementation" of wiki principles
 
-- [ ] Add rule versioning (git tracks history, but rules need semantic versioning)
-- [ ] Add rule backtesting — test each rule's historical accuracy
-- [ ] Add rule conflict detection (two rules firing opposite actions)
-- [ ] Add rule coverage analysis (are there regime states with no firing rule?)
-- [ ] Add threshold alerts section (one-shot when indicator crosses threshold)
-- [ ] Add safety metrics section (portfolio-level guards)
+The wiki provides the "should" (principles for regimes). allocations.yaml provides the "baseline" (human's target). When they conflict:
+- Wiki wins for regime-specific guidance
+- allocations.yaml wins for long-term baseline
+- Agent documents tension via `tracker.py reflect`
 
 ### 6. Alert / Notification Layer
-Not built yet. Agent runs tools but doesn't notify when something important changes.
+`report/monitor.py` detects regime changes. Needs delivery mechanism.
 
-- [ ] Design alert taxonomy: regime shift, rule fire, data staleness, portfolio drift, principle flag
-- [ ] Add alert generation to `report/report.py`
+- [ ] Design alert taxonomy: regime shift, data staleness, portfolio drift
 - [ ] Add alert delivery (Discord, email, etc. — requires human preference)
 - [ ] Add alert suppression (don't spam if same alert fires daily)
 - [ ] Add alert escalation (urgent vs routine)
 
-## Low Priority / Future
-
 ### 7. Report / Feedback Automation
 `report/feedback.py` doesn't exist yet.
 
-- [ ] Auto-compare fired rules vs outcomes after evaluation period
+- [ ] Auto-compare wiki_readings vs outcomes after evaluation period
 - [ ] Auto-suggest wiki updates when principles underperform
 - [ ] Auto-generate monthly principle health report
 
 ### 8. Journal / Audit Logging
-`report/journal.py` exists but isn't wired into workflow.
+`report/journal.py` deleted. Function merged into `history/tracker.py reflect`.
 
 - [ ] Log every agent action: tool run, wiki query, recommendation made
 - [ ] Add audit trail for human approval/rejection of recommendations
 - [ ] Add structured journal entries for periodic reviews
 
 ### 9. Advanced Data Sources
+- [ ] Add employment / labor market: unemployment, jobless claims, wage growth (FRED: UNRATE, ICSA, CES0500000003)
+- [ ] Add housing / real estate: home prices, mortgage rates (FRED: CSUSHPISA, MORTGAGE30US)
+- [ ] Add consumer / business sentiment: PMI, consumer confidence (FRED: NAPM, UMCSENT)
+- [ ] Add international / trade: trade balance, foreign Treasury holdings (FRED: BOPGSTB, TIC)
+- [ ] Add market internals: advance-decline, new highs/lows (need alternative source — not FRED)
 - [ ] Add real-time geopolitical risk feeds (GDELT, ICEWS, or similar)
-- [ ] Add market breadth indicators (advance-decline, new highs/lows)
-- [ ] Add options flow / sentiment data
-- [ ] Add earnings trend and guidance revision data
+- [ ] Add options market data (implied volatility, skew)
 - [ ] Track in TODO: these require API keys, subscriptions, or scraping infrastructure
 
 ## Completed
 - [x] Move allweather.py from tests/ to portfolio/ — portfolio construction concept, not a test
-- [x] Simplify history/tracker.py — remove flagging, keep only record/evaluate/list/show
+- [x] Simplify history/tracker.py — remove flagging, keep only record/evaluate/list/show/reflect/journal
 - [x] Add reflection/ branch to wiki for principle evolution
 - [x] Split into two repos: quant-principles (wiki) and quant-tools (programmatic)
 - [x] Add thin CLI entry point (quant.py)
 - [x] Add shared data models in core/models.py
 - [x] Remove rules.yaml — principles live in wiki, agent maps signals to wiki directly
+- [x] Delete report/debate.py — debate is process, agent uses tracker.py reflect
+- [x] Delete report/journal.py — merged into history/tracker.py
+- [x] Refactor report/monitor.py — use wiki_readings instead of rules_fired
+- [x] Update HANDBOOK — remove fired rules references, add wiki_readings, clarify allocations.yaml relationship
+- [x] Add journal.jsonl to history/ for freeform agent reflections
+- [x] Add daily + weekly + monthly cron to HANDBOOK
 
 ## Open Questions
 - How often should tracker.py evaluate run? (monthly? quarterly? event-driven?)
-- What's the threshold for flagging a principle as "needs review"? (accuracy < 50% over N invocations?)
 - Should debate be multi-agent or single-agent with forced argumentation?
 - What's the right alert delivery mechanism for Vanilain?
 - How do we handle tax considerations in action determination?
+- What's the threshold for flagging a principle as "needs review"?

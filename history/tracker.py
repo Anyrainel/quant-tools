@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 HISTORY = ROOT / "history"
 DECISIONS = HISTORY / "decisions.jsonl"
 OUTCOMES = HISTORY / "outcomes.jsonl"
+JOURNAL = HISTORY / "journal.jsonl"  # freeform agent reflections
 
 # ── Data Models ──────────────────────────────────────────────────────────────
 
@@ -121,6 +122,24 @@ class Outcome:
     @classmethod
     def from_dict(cls, d: dict) -> "Outcome":
         return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
+
+
+@dataclass
+class JournalEntry:
+    """Freeform reflection by the agent.
+    
+    Not a decision or outcome — just observations, questions, hypotheses.
+    The agent writes these during or after analysis.
+    """
+    id: str
+    date: str
+    topic: str  # e.g. "debate", "review", "surprise", "hypothesis"
+    content: str  # freeform text
+    related_decisions: list[str] = field(default_factory=list)
+    related_principles: list[str] = field(default_factory=list)
+    
+    def to_dict(self) -> dict:
+        return asdict(self)
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -287,6 +306,38 @@ def show(decision_id):
             click.echo(f"  Notes: {o['notes']}")
     else:
         click.echo("\nOutcome: not yet evaluated")
+
+
+@cli.command()
+@click.option("--topic", required=True, help="Topic: debate, review, surprise, hypothesis, ...")
+@click.option("--content", required=True, help="Freeform reflection text")
+@click.option("--decision", multiple=True, help="Related decision IDs")
+@click.option("--principle", multiple=True, help="Related principle IDs")
+def reflect(topic, content, decision, principle):
+    """Record a freeform reflection (not a decision or outcome)."""
+    entry = JournalEntry(
+        id=f"j-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+        date=date.today().isoformat(),
+        topic=topic,
+        content=content,
+        related_decisions=list(decision),
+        related_principles=list(principle),
+    )
+    with JOURNAL.open("a") as f:
+        f.write(json.dumps(entry.to_dict()) + "\n")
+    click.echo(f"Recorded {entry.id}: {topic}")
+
+
+@cli.command()
+def journal():
+    """Show recent journal entries."""
+    if not JOURNAL.exists():
+        click.echo("No journal entries yet.")
+        return
+    entries = [json.loads(line) for line in JOURNAL.read_text().splitlines() if line.strip()]
+    for e in entries[-10:]:
+        click.echo(f"\n[{e['date']}] {e['topic']}: {e['id']}")
+        click.echo(f"  {e['content'][:200]}...")
 
 
 if __name__ == "__main__":
