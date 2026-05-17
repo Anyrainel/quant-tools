@@ -1,8 +1,0 @@
-# Outcomes
-
-Decision tracking and principle evolution.
-
-- `tracker.py` — record, evaluate, and flag decisions
-- `decisions.jsonl` — append-only decision log (runtime, gitignored)
-
-This is the feedback loop: decisions → outcomes → principle updates.
