@@ -36,7 +36,6 @@ DATA = ROOT / "data"
 SCORECARD_JSON = DATA / "scorecard.json"
 HISTORY_DIR = DATA / "history"
 CONFIG_FILE = Path(__file__).parent / "config.yaml"
-RULES_FILE = Path(__file__).parent / "rules.yaml"
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -421,29 +420,42 @@ def compute_conviction(disagreements: dict) -> float:
 
 
 def check_rules(rules, raw, regime, portfolio=None):
-    fired = []
-    for rule in rules:
-        match = True
-        for key, val in rule.get("condition", {}).items():
-            if key in ("cycle_stage", "stress_direction", "inflation_regime"):
-                if regime.get(key) not in val:
-                    match = False
-                    break
-            elif key in ("gold_pct_portfolio", "cash_pct"):
-                if portfolio is None:
-                    continue
-                pv = portfolio.get(key)
-                if pv is not None and not in_range(pv, val):
-                    match = False
-                    break
-            else:
-                iv = (raw.get(key) or {}).get("value")
-                if iv is not None and not in_range(iv, val):
-                    match = False
-                    break
-        if match:
-            fired.append(rule)
-    return fired
+    """Evaluate which rules fire. DEPRECATED: rules.yaml removed.
+    
+    This function now just returns regime-based recommendations for the agent
+    to cross-reference with the wiki. The agent reads the wiki directly.
+    """
+    # Build regime-based reading list for the agent
+    readings = []
+    cs = regime.get("cycle_stage")
+    sd = regime.get("stress_direction")
+    ir = regime.get("inflation_regime")
+    
+    # Map regime axes to wiki chapters
+    if cs in ("late", "crisis"):
+        readings.append("dalio/01-debt-cycle-mechanics/")
+        readings.append("dalio/05-sovereign-debt-stress/")
+    if sd in ("elevated", "acute", "crisis"):
+        readings.append("dalio/02-deleveraging-playbook/")
+        readings.append("dalio/07-current-macro-position/")
+    if ir in ("rising", "acute"):
+        readings.append("dalio/03-currency-monetary-systems/")
+        readings.append("dalio/08-asset-returns-and-positioning/")
+    if ir in ("disinflation", "deflation"):
+        readings.append("dalio/02-deleveraging-playbook/")
+    
+    # Tension-based readings
+    if cs == "late" and ir == "acute":
+        readings.append("dalio/08-asset-returns-and-positioning/gold-real-assets-in-devaluation")
+    if sd == "acute" and ir == "disinflation":
+        readings.append("dalio/02-deleveraging-playbook/deflationary-vs-inflationary-types")
+    
+    return list(dict.fromkeys(readings))  # dedupe
+
+
+def load_rules():
+    """DEPRECATED: rules.yaml removed. Returns empty list."""
+    return []
 
 
 # ── Output ────────────────────────────────────────────────────────────────────
@@ -453,12 +465,13 @@ def build_json_output(sc):
     regime = sc.get("regime", {})
     conviction = compute_conviction(sc.get("disagreements", {}))
     tension = sc.get("tension")
+    readings = check_rules([], {}, regime)  # regime-based wiki readings
     return {
         "regime": regime,
         "conviction": conviction,
         "tensions": [tension] if tension else [],
         "indicators": sc.get("raw", {}),
-        "rules_fired": sc.get("rules_fired", []),
+        "wiki_readings": readings,
         "scored_at": sc.get("scored_at", ""),
         "pulled_at": sc.get("pulled_at", ""),
     }
@@ -472,7 +485,7 @@ def print_text_summary(sc):
     conviction = compute_conviction(sc.get("disagreements", {}))
     raw = sc.get("raw", {})
     tension = sc.get("tension")
-    fired = sc.get("rules_fired", [])
+    readings = check_rules([], {}, regime)
 
     pulled = sum(1 for v in raw.values() if v.get("value") is not None)
     print(f"\n{'=' * 50}")
@@ -484,12 +497,10 @@ def print_text_summary(sc):
     disagreeing = [k for k, v in sc.get("disagreements", {}).items() if v]
     if disagreeing:
         print(f"\n⚠️  Disagreements: {', '.join(disagreeing)}")
-    if fired:
-        print(f"\n📋 Rules fired ({len(fired)}):")
-        for r in fired:
-            sym = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(r.get("confidence", ""), "⚪")
-            print(f"   {sym} {r['id']}: {r['name']}")
-            print(f"      Action: {r['action']}")
+    if readings:
+        print(f"\n📚 Wiki readings:")
+        for r in readings:
+            print(f"   → {r}")
     print(f"\n   Scorecard: {SCORECARD_JSON}")
     print(f"   Scored at: {sc.get('scored_at', '?')[:19]}")
 
@@ -541,7 +552,7 @@ def score():
             "disagreements": disagreements,
             "tension": tension,
             "scored_at": datetime.utcnow().isoformat(),
-            "rules_fired": check_rules(load_rules(), raw, regime),
+            "wiki_readings": check_rules([], {}, regime),
         }
     )
     save_scorecard(sc)
@@ -549,13 +560,14 @@ def score():
     print(f"\n📊 Regime: ({cs}, {sd}, {ir}) | Conviction: {compute_conviction(disagreements):.1f}")
     if tension:
         print(f"⚡ Tension: {tension['message'][:80]}...")
-    print(f"   Rules fired: {len(sc['rules_fired'])}")
+    readings = check_rules([], {}, regime)
+    print(f"   Wiki readings: {len(readings)}")
 
 
 @cli.command()
-@click.option("--folio", is_flag=True, default=False, help="Load portfolio from folio.py for allocation rules.")
+@click.option("--folio", is_flag=True, default=False, help="Load portfolio from folio.py for allocation context.")
 def check(folio):
-    """Evaluate which rules fire and print them."""
+    """Show regime and recommended wiki readings."""
     sc = load_scorecard()
     raw, regime = sc.get("raw", {}), sc.get("regime", {})
     if not regime:
@@ -570,18 +582,17 @@ def check(folio):
                 f"gold={portfolio['gold_pct_portfolio']}%, cash={portfolio['cash_pct']}%"
             )
         else:
-            print("  ⚠️  Folio data unavailable — allocation rules skipped.")
+            print("  ⚠️  Folio data unavailable.")
 
-    fired = check_rules(load_rules(), raw, regime, portfolio)
-    print(f"\n📋 Rules fired: {len(fired)}/{len(load_rules())}")
+    readings = check_rules([], {}, regime)
     cs2 = regime.get("cycle_stage")
     sd2 = regime.get("stress_direction")
     ir2 = regime.get("inflation_regime")
-    print(f"   Regime: ({cs2}, {sd2}, {ir2})")
-    for rule in fired:
-        print(f"\n  [{rule.get('confidence', '?').upper()}] {rule['id']}: {rule['name']}")
-        print(f"         Action: {rule['action']}")
-        print(f"         Vault: {rule['vault']}")
+    print(f"\n📊 Regime: ({cs2}, {sd2}, {ir2})")
+    print(f"\n📚 Recommended wiki readings:")
+    for r in readings:
+        print(f"   → {r}")
+    print(f"\n   Agent should read these wiki chapters, then cross-reference with portfolio.")
 
 
 @cli.command()
@@ -603,7 +614,7 @@ def run():
             "disagreements": disagreements,
             "tension": tension,
             "scored_at": datetime.utcnow().isoformat(),
-            "rules_fired": check_rules(load_rules(), raw, regime),
+            "wiki_readings": check_rules([], {}, regime),
         }
     )
     save_scorecard(sc)
