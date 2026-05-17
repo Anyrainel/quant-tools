@@ -29,6 +29,55 @@ HOLDINGS_JSON = Path(__file__).resolve().parents[2] / "data" / "holdings.json"
 PYTHON = sys.executable
 
 
+def compute_environment_balance(asset_classes: dict, neutral: dict) -> dict[str, float]:
+    """For each environment, sum the neutral weights of asset classes that thrive in it."""
+    ENVIRONMENTS = ["rising_growth", "falling_growth", "rising_inflation", "falling_inflation"]
+    balance: dict[str, float] = {env: 0.0 for env in ENVIRONMENTS}
+    for ac, info in asset_classes.items():
+        weight = neutral.get(ac, 0.0)
+        envs = info.get("environment", [])
+        if isinstance(envs, str):
+            envs = [envs]
+        per_env = weight / len(envs) if envs else 0.0
+        for env in envs:
+            if env in balance:
+                balance[env] += per_env
+    return {k: round(v, 2) for k, v in balance.items()}
+
+
+def compute_target_allocations(cfg: dict, regime: dict) -> dict[str, float]:
+    """Compute target allocation: neutral + regime tilts."""
+    neutral = cfg.get("neutral", {})
+    tilts = cfg.get("tilts", {})
+    
+    # Start with neutral
+    target = dict(neutral)
+    
+    # Apply tilts for each regime axis
+    cs = regime.get("cycle_stage")
+    sd = regime.get("stress_direction")
+    ir = regime.get("inflation_regime")
+    
+    if cs and cs in tilts.get("cycle_stage", {}):
+        for ac, tilt in tilts["cycle_stage"][cs].items():
+            target[ac] = target.get(ac, 0) + tilt
+    
+    if sd and sd in tilts.get("stress_direction", {}):
+        for ac, tilt in tilts["stress_direction"][sd].items():
+            target[ac] = target.get(ac, 0) + tilt
+    
+    if ir and ir in tilts.get("inflation_regime", {}):
+        for ac, tilt in tilts["inflation_regime"][ir].items():
+            target[ac] = target.get(ac, 0) + tilt
+    
+    # Normalize to 100%
+    total = sum(target.values())
+    if total > 0:
+        target = {k: round(v / total * 100, 2) for k, v in target.items()}
+    
+    return target
+
+
 def load_allocations() -> dict:
     return yaml.safe_load(ALLOCATIONS_YAML.read_text())
 
@@ -248,7 +297,7 @@ def build_output(trades: list[dict], regime: dict | None, conviction: float | No
     return result
 
 
-def print_text(output: dict) -> None:
+def print_text(output: dict, cfg: dict | None = None) -> None:
     regime = output.get("regime", {})
     conviction = output.get("conviction")
     cs = regime.get("cycle_stage", "?")
@@ -279,6 +328,32 @@ def print_text(output: dict) -> None:
 
     s = output["summary"]
     print(f"\n  Sells: ${s['total_sells']:,.0f} | Buys: ${s['total_buys']:,.0f} | Net: ${s['net']:+,.0f}")
+    
+    # All-weather analysis
+    if cfg and regime:
+        print("\n=== ALL WEATHER ANALYSIS ===\n")
+        target = compute_target_allocations(cfg, regime)
+        asset_classes = cfg.get("asset_classes", {})
+        neutral = cfg.get("neutral", {})
+        env_balance = compute_environment_balance(asset_classes, target)
+        
+        print(f"{'Asset Class':<22} {'Neutral':>8} {'Target':>8} {'Diff':>8}")
+        print("─" * 55)
+        for ac in sorted(target.keys()):
+            neutral_w = neutral.get(ac, 0)
+            target_w = target.get(ac, 0)
+            diff = target_w - neutral_w
+            label = ac.replace("_", " ").title()
+            print(f"{label:<22} {neutral_w:>7.1f}% {target_w:>7.1f}% {diff:>+7.1f}%")
+        
+        print("\n=== ENVIRONMENT BALANCE ===\n")
+        print(f"{'Environment':<25} {'Weight':>8}")
+        print("─" * 35)
+        for env, weight in env_balance.items():
+            label = env.replace("_", " ").title()
+            gap = weight - 25.0
+            gap_str = f"  ({gap:+.1f}% vs ideal 25%)" if abs(gap) > 0.5 else "  ✓"
+            print(f"{label:<25} {weight:>7.1f}%{gap_str}")
     print()
 
 
@@ -338,7 +413,7 @@ def main(target_file, holdings_file, folio, broker, scorecard, as_json, as_text)
     if as_json:
         click.echo(json.dumps(output, indent=2))
     else:
-        print_text(output)
+        print_text(output, cfg)
 
 
 if __name__ == "__main__":

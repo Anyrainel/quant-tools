@@ -80,11 +80,31 @@ def is_stale(date_str, max_days=60):
         return True
 
 
-def ind(value, dt, stale_days):
-    """Build a standard indicator record."""
+def ind(value, dt, stale_days, source="", series="", indicator_name=""):
+    """Build a standard indicator record with quality metadata."""
     if value is None:
-        return {"value": None, "date": None, "stale": True}
-    return {"value": value, "date": dt, "stale": is_stale(dt, stale_days)}
+        return {
+            "value": None,
+            "date": None,
+            "stale": True,
+            "missing": True,
+            "source": source,
+            "series": series,
+            "indicator": indicator_name,
+            "quality": "missing",
+        }
+    stale = is_stale(dt, stale_days)
+    quality = "stale" if stale else "fresh"
+    return {
+        "value": value,
+        "date": dt,
+        "stale": stale,
+        "missing": False,
+        "source": source,
+        "series": series,
+        "indicator": indicator_name,
+        "quality": quality,
+    }
 
 
 def cache_series(source, key, series):
@@ -458,6 +478,75 @@ def load_rules():
     return []
 
 
+# ── Data Quality ────────────────────────────────────────────────────────────
+
+
+def check_data_quality(raw: dict) -> dict:
+    """Check indicator staleness, missing data, and cross-indicator consistency.
+    
+    Returns quality report with warnings and conflicts.
+    """
+    report = {
+        "stale": [],
+        "missing": [],
+        "conflicts": [],
+        "fresh_count": 0,
+        "stale_count": 0,
+        "missing_count": 0,
+        "total": len(raw),
+    }
+    
+    for key, ind in raw.items():
+        if ind.get("missing"):
+            report["missing"].append(key)
+            report["missing_count"] += 1
+        elif ind.get("stale"):
+            report["stale"].append({
+                "indicator": key,
+                "date": ind.get("date"),
+                "value": ind.get("value"),
+            })
+            report["stale_count"] += 1
+        else:
+            report["fresh_count"] += 1
+    
+    # Cross-indicator consistency checks
+    gold_yoy = (raw.get("gold_yoy") or {}).get("value")
+    dxy = (raw.get("dxy") or {}).get("value")
+    if gold_yoy is not None and dxy is not None:
+        # Gold up + DXY up = unusual (gold typically inverse to dollar)
+        if gold_yoy > 10 and dxy > 105:
+            report["conflicts"].append({
+                "type": "unusual_correlation",
+                "indicators": ["gold_yoy", "dxy"],
+                "message": f"Gold up {gold_yoy}% while DXY strong at {dxy} — check for flight-to-safety or currency crisis",
+            })
+    
+    vix = (raw.get("vix") or {}).get("value")
+    credit_spread = (raw.get("credit_spread") or {}).get("value")
+    if vix is not None and credit_spread is not None:
+        # VIX low + credit spreads wide = divergence (equity complacency vs credit stress)
+        if vix < 20 and credit_spread > 3.0:
+            report["conflicts"].append({
+                "type": "divergence",
+                "indicators": ["vix", "credit_spread"],
+                "message": f"VIX calm ({vix}) but credit spreads elevated ({credit_spread}%) — equity/credit divergence",
+            })
+    
+    breakeven = (raw.get("breakeven_5y") or {}).get("value")
+    core_pce = (raw.get("core_pce_yoy") or {}).get("value")
+    if breakeven is not None and core_pce is not None:
+        # Breakeven >> core PCE = market pricing higher inflation than realized
+        if breakeven > core_pce + 1.0:
+            report["conflicts"].append({
+                "type": "expectation_gap",
+                "indicators": ["breakeven_5y", "core_pce_yoy"],
+                "message": f"Breakeven ({breakeven}%) > core PCE ({core_pce}%) by {(breakeven - core_pce):.1f}pp — market pricing higher inflation",
+            })
+    
+    return report
+
+
 # ── Output ────────────────────────────────────────────────────────────────────
 
 
@@ -465,13 +554,15 @@ def build_json_output(sc):
     regime = sc.get("regime", {})
     conviction = compute_conviction(sc.get("disagreements", {}))
     tension = sc.get("tension")
-    readings = check_rules([], {}, regime)  # regime-based wiki readings
+    readings = check_rules([], {}, regime)
+    quality = check_data_quality(sc.get("raw", {}))
     return {
         "regime": regime,
         "conviction": conviction,
         "tensions": [tension] if tension else [],
         "indicators": sc.get("raw", {}),
         "wiki_readings": readings,
+        "data_quality": quality,
         "scored_at": sc.get("scored_at", ""),
         "pulled_at": sc.get("pulled_at", ""),
     }
@@ -486,12 +577,28 @@ def print_text_summary(sc):
     raw = sc.get("raw", {})
     tension = sc.get("tension")
     readings = check_rules([], {}, regime)
+    quality = check_data_quality(raw)
 
     pulled = sum(1 for v in raw.values() if v.get("value") is not None)
     print(f"\n{'=' * 50}")
     print(f"🌍 MACRO REGIME: ({cs.upper()}, {sd.upper()}, {ir.upper()})")
     print(f"   Conviction: {conviction:.1f} | Indicators: {pulled}/16")
     print(f"{'=' * 50}")
+    
+    # Data quality section
+    if quality["missing"] or quality["stale"] or quality["conflicts"]:
+        print(f"\n⚠️  DATA QUALITY:")
+        if quality["missing"]:
+            print(f"   Missing: {', '.join(quality['missing'])}")
+        if quality["stale"]:
+            stale_names = [s['indicator'] for s in quality['stale']]
+            print(f"   Stale: {', '.join(stale_names)}")
+        if quality["conflicts"]:
+            for c in quality["conflicts"]:
+                print(f"   🔥 {c['type']}: {c['message']}")
+    else:
+        print(f"\n✅ All indicators fresh, no conflicts")
+    
     if tension:
         print(f"\n⚡ Tension: {tension['message'][:100]}")
     disagreeing = [k for k, v in sc.get("disagreements", {}).items() if v]
