@@ -2,35 +2,83 @@
 
 Programmatic inputs for the quant system. Fetches data, tracks portfolio, generates signals, and produces structured outputs for the guidance engine.
 
-## Components
+## Structure
 
-- **gauge** — Macro regime classification (Dalio-style: debt cycle, stress, inflation)
-- **broker** — Portfolio sync from Robinhood + E*TRADE (read-only)
-- **rebalance** — Allocation drift detection + trade sizing
-- **backtest** — Strategy simulation over historical regimes
-- **timeline** — Historical macro data compilation
-- **report** — Structured signal output for the guidance engine
+```
+quant-tools/
+├── quant.py              # thin CLI entry point
+├── signals/              # macro regime classification + data ingestion
+│   ├── gauge.py          # 16-indicator regime classifier
+│   ├── timeline.py       # historical macro data
+│   ├── config.yaml       # indicator config
+│   └── rules.yaml        # regime rules
+├── portfolio/            # broker sync + position tracking
+│   ├── broker.py         # RH + E*TRADE read-only sync
+│   ├── rebalance.py      # drift detection + trade sizing
+│   ├── portfolio.py      # portfolio data models
+│   └── allocations.yaml  # target allocation config
+├── tests/                # backtests + validation
+│   ├── backtest.py
+│   ├── backtest_full.py
+│   ├── alpha.py
+│   └── allweather.py
+├── report/               # synthesize → agent-ready output
+│   ├── report.py         # structured signal report
+│   ├── debate.py         # regime debate / tension analysis
+│   ├── journal.py        # decision journal
+│   └── monitor.py        # ongoing monitoring
+├── core/                 # shared infrastructure
+│   ├── cache.py          # data caching layer
+│   └── models.py         # shared data structures
+├── data/                 # runtime outputs (gitignored)
+│   ├── scorecard.json    # latest regime reading
+│   └── holdings.json     # portfolio snapshot
+├── history/              # archived scorecards (gitignored)
+└── BLUEPRINT.md          # system architecture
+```
 
 ## Usage
 
 ```bash
-cd quant-tools
-uv run gauge.py pull    # fetch indicators
-uv run gauge.py score    # classify regime
-uv run broker.py         # sync portfolio
-uv run rebalance.py      # check drift
+# Signals
+python quant.py signals pull       # fetch indicators
+python quant.py signals score      # classify regime
+python quant.py signals run        # pull + score
+
+# Portfolio
+python quant.py portfolio sync     # sync from brokers
+python quant.py portfolio show     # display holdings
+python quant.py portfolio rebalance # check drift
+
+# Tests
+python quant.py tests backtest     # run backtest
+python quant.py tests allweather   # all-weather sim
+
+# Report
+python quant.py report generate    # synthesize report
+python quant.py report check       # check fired rules
+
+# Full pipeline
+python quant.py full               # signals + portfolio + report
 ```
 
 ## Data Flow
 
 ```
-[FRED/YFinance/Brokers] → [gauge/broker] → [scorecard.json + holdings.json]
+[FRED/YFinance/Brokers] → [signals/] → data/scorecard.json
                                     ↓
-                          [rebalance + backtest]
+                          [portfolio/] → data/holdings.json
                                     ↓
-                          [report] → memory/YYYY-MM-DD.md
+                          [report/] → structured output
+                                    ↓
+                          [Guidance Engine] → memory/YYYY-MM-DD.md
 ```
 
-## Repo
+## Paired Repo
 
-Paired with `quant-principles` (the wiki/knowledge base).
+- **quant-principles** — Wiki/knowledge base (Quartz site)
+  https://github.com/Anyrainel/quant-principles
+
+## Cron
+
+Scheduled via OpenClaw native cron. The agent wakes, decides what to run, invokes quant.py commands, and processes outputs.

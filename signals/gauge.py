@@ -23,7 +23,7 @@ import click
 import yaml
 
 try:
-    from cache import put_bulk
+    from core.cache import put_bulk
 
     _CACHE_ENABLED = True
 except ImportError:

@@ -34,7 +34,7 @@ import yaml
 # ---------------------------------------------------------------------------
 _FORBIDDEN = ["order_buy", "order_sell", "submit_order", "place_order"]
 
-MACRO_DIR = Path(__file__).parent
+MACRO_DIR = Path(__file__).resolve().parents[1] / "portfolio"
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 ALLOCATIONS_YAML = MACRO_DIR / "allocations.yaml"
 HOLDINGS_JSON = DATA_DIR / "holdings.json"

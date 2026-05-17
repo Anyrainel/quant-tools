@@ -19,12 +19,12 @@ from pathlib import Path
 import click
 import yaml
 
-MACRO_DIR = Path(__file__).parent
+MACRO_DIR = Path(__file__).resolve().parents[1] / "portfolio"
 DEFAULT_SCORECARD = Path(__file__).resolve().parents[2] / "data" / "scorecard.json"
 ALLOCATIONS_YAML = MACRO_DIR / "allocations.yaml"
-FOLIO_PY = Path(__file__).resolve().parents[3] / "folio" / "folio.py"
-FOLIO_PYTHON = Path(__file__).resolve().parents[3] / "folio" / ".venv" / "bin" / "python3"
-BROKER_PY = Path(__file__).parent / "broker.py"
+FOLIO_PY = Path(__file__).resolve().parents[2] / "folio" / "folio.py"
+FOLIO_PYTHON = Path(__file__).resolve().parents[2] / "folio" / ".venv" / "bin" / "python3"
+BROKER_PY = MACRO_DIR / "broker.py"
 HOLDINGS_JSON = Path(__file__).resolve().parents[2] / "data" / "holdings.json"
 PYTHON = sys.executable
 

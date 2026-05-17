@@ -20,10 +20,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "data"
-sys.path.insert(0, str(Path(__file__).parent))  # noqa: E402
+sys.path.insert(0, str(ROOT / "core"))  # noqa: E402
+sys.path.insert(0, str(ROOT / "signals"))  # noqa: E402
 
-from cache import get_latest_before, is_cached_series, put_bulk  # noqa: E402
-from gauge import (  # noqa: E402
+from core.cache import get_latest_before, is_cached_series, put_bulk  # noqa: E402
+from signals.gauge import (  # noqa: E402
     SEVERITY,
     check_crisis_override,
     classify_question,
@@ -137,7 +138,7 @@ _QUSPAM_SERIES = None  # [(date_str, value), ...]
 def _ensure_quspam():
     global _QUSPAM_SERIES
     if _QUSPAM_SERIES is None:
-        from cache import preload_series
+        from core.cache import preload_series
         _QUSPAM_SERIES = preload_series("fred", "QUSPAM770A")
     return _QUSPAM_SERIES
 
