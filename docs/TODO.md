@@ -92,7 +92,7 @@ The wiki provides the "should" (principles for regimes). allocations.yaml provid
 - [x] Move allweather.py from tests/ to portfolio/ — portfolio construction concept, not a test
 - [x] Simplify history/tracker.py — remove flagging, keep only record/evaluate/list/show/reflect/journal
 - [x] Add reflection/ branch to wiki for principle evolution
-- [x] Split into two repos: quant-principles (wiki) and quant-tools (programmatic)
+- [x] Split into two repos: macro-principles (wiki) and macro-tools (programmatic)
 - [x] Add thin CLI entry point (quant.py)
 - [x] Add shared data models in core/models.py
 - [x] Remove rules.yaml — principles live in wiki, agent maps signals to wiki directly

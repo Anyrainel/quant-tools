@@ -23,7 +23,7 @@ The system does not trade autonomously. It produces structured recommendations f
 
 Two repos with distinct responsibilities.
 
-### quant-principles (Wiki / Knowledge Base)
+### macro-principles (Wiki / Knowledge Base)
 
 **Role:** Immutable principles, condition-indexed, source-grounded.
 
@@ -41,7 +41,7 @@ Two repos with distinct responsibilities.
 
 **Future branches:** Add as siblings under `content/`. Each branch gets its own `sources/<branch>/WIKI.md` schema. Follow the dalio pattern: atomize → cluster → route → synthesize → lint.
 
-### quant-tools (Programmatic Inputs)
+### macro-tools (Programmatic Inputs)
 
 **Role:** Fetch data, classify regimes, track portfolios, generate reports, record outcomes.
 
@@ -125,5 +125,5 @@ Two repos with distinct responsibilities.
 ## Changelog
 
 - `2026-05-16` — v2.0. Restructured as two-repo system. Added reflection branch, history tracking, thin CLI. Removed ASCII diagrams, made agent-facing.
-- `2026-05-16` — v1.1. Split quant-principles and quant-tools repos.
+- `2026-05-16` — v1.1. Split macro-principles and macro-tools repos.
 - `2026-05-16` — v1.0. Initial blueprint.

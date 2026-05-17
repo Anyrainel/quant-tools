@@ -1,4 +1,4 @@
-"""Shared data models and utilities for quant-tools."""
+"""Shared data models and utilities for macro-tools."""
 
 from dataclasses import dataclass, field
 from datetime import date

@@ -5,7 +5,7 @@ Programmatic inputs for the quant system. Fetches data, tracks portfolio, genera
 ## Structure
 
 ```
-quant-tools/
+macro-tools/
 ├── quant.py              # thin CLI entry point
 ├── signals/              # macro regime classification + data ingestion
 │   ├── gauge.py          # 16-indicator regime classifier
@@ -76,8 +76,8 @@ python quant.py full               # signals + portfolio + report
 
 ## Paired Repo
 
-- **quant-principles** — Wiki/knowledge base (Quartz site)
-  https://github.com/Anyrainel/quant-principles
+- **macro-principles** — Wiki/knowledge base (Quartz site)
+  https://github.com/Anyrainel/macro-principles
 
 ## Cron
 

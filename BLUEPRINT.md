@@ -16,7 +16,7 @@ This document is the single source of truth for the architecture of Vanilain's q
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
 │  ┌──────────────────────────────┐  ┌──────────────────────────────┐        │
-│  │     REPO 1: quant-principles │  │     REPO 2: quant-tools      │        │
+│  │     REPO 1: macro-principles │  │     REPO 2: macro-tools      │        │
 │  │     (Wiki / Knowledge Base)    │  │     (Programmatic Inputs)    │        │
 │  │                              │  │                              │        │
 │  │  content/dalio/              │  │  gauge.py — macro regime     │        │
@@ -26,7 +26,7 @@ This document is the single source of truth for the architecture of Vanilain's q
 │  │  └─ Quartz → Cloudflare      │  │  report.py — signal output   │        │
 │  │                              │  │                              │        │
 │  │  Rendered site:             │  │  Data outputs:              │        │
-│  │  quant-principles.pages.dev  │  │  → scorecard.json           │        │
+│  │  macro-principles.pages.dev  │  │  → scorecard.json           │        │
 │  │                              │  │  → holdings.json            │        │
 │  └──────────────┬───────────────┘  └──────────────┬───────────────┘        │
 │                 │                                  │                          │
@@ -55,9 +55,9 @@ This document is the single source of truth for the architecture of Vanilain's q
 
 ## Two-Repo Architecture
 
-### Repo 1: `quant-principles` — Wiki / Knowledge Base
-**URL:** https://github.com/Anyrainel/quant-principles  
-**Rendered:** https://quant-principles.pages.dev
+### Repo 1: `macro-principles` — Wiki / Knowledge Base
+**URL:** https://github.com/Anyrainel/macro-principles  
+**Rendered:** https://macro-principles.pages.dev
 
 **Contents:**
 - `content/dalio/` — 9 chapters organized in 4 phases: Mechanics → Calibration → Diagnostic → Action
@@ -78,8 +78,8 @@ This document is the single source of truth for the architecture of Vanilain's q
 
 ---
 
-### Repo 2: `quant-tools` — Programmatic Inputs
-**URL:** https://github.com/Anyrainel/quant-tools
+### Repo 2: `macro-tools` — Programmatic Inputs
+**URL:** https://github.com/Anyrainel/macro-tools
 
 **Contents:**
 - `gauge.py` — Macro regime classification (16 indicators, Dalio-style: debt cycle, stress, inflation)
@@ -107,7 +107,7 @@ This document is the single source of truth for the architecture of Vanilain's q
 
 ## Data Flows
 
-### Flow 1: Signal Generation (quant-tools)
+### Flow 1: Signal Generation (macro-tools)
 ```
 [FRED API] ──┐
 [YFinance] ──┼──→ gauge.py ──→ data/scorecard.json
@@ -117,7 +117,7 @@ This document is the single source of truth for the architecture of Vanilain's q
 
 ### Flow 2: Guidance Generation (ProClaw-Quant)
 ```
-quant-principles/content/dalio/ (principles)
+macro-principles/content/dalio/ (principles)
          ↓
 data/scorecard.json (current regime)
          ↓
@@ -126,7 +126,7 @@ data/holdings.json (portfolio snapshot)
 [Guidance Engine] → memory/YYYY-MM-DD.md (recommendations)
 ```
 
-### Flow 3: Wiki Update (quant-principles)
+### Flow 3: Wiki Update (macro-principles)
 ```
 New Source → [Atomize → Cluster → Route → Synthesize → Lint]
                                               ↓
@@ -147,7 +147,7 @@ New Source → [Atomize → Cluster → Route → Synthesize → Lint]
 | `SOUL.md` | Agent temperament + boundaries | ProClaw-Quant |
 | `AGENTS.md` | Workspace rules + memory protocol | ProClaw-Quant |
 
-### quant-principles (Wiki)
+### macro-principles (Wiki)
 | File | Purpose | Update Owner |
 |------|---------|-------------|
 | `content/dalio/` | Wiki content (9 chapters) | Sub-agents per WIKI.md |
@@ -155,7 +155,7 @@ New Source → [Atomize → Cluster → Route → Synthesize → Lint]
 | `content/dalio/REPORT.md` | Build report + scores | Sub-agents |
 | `content/dalio/log.md` | Ops log | Sub-agents |
 
-### quant-tools (Programmatic)
+### macro-tools (Programmatic)
 | File | Purpose | Update Owner |
 |------|---------|-------------|
 | `gauge.py` | Macro regime classification | ProClaw-Quant |
@@ -194,8 +194,8 @@ New Source → [Atomize → Cluster → Route → Synthesize → Lint]
 ## Current Status
 
 ### ✅ Working
-- **quant-principles**: 9 chapters, 270+ atoms, Dalio sources ingested, deployed to Cloudflare
-- **quant-tools**: All tooling extracted to dedicated repo, committed and pushed
+- **macro-principles**: 9 chapters, 270+ atoms, Dalio sources ingested, deployed to Cloudflare
+- **macro-tools**: All tooling extracted to dedicated repo, committed and pushed
 - **Cross-agent comms**: ProClaw ↔ ProClaw-Quant verified
 
 ### 🔄 In Progress / Planned
@@ -212,5 +212,5 @@ New Source → [Atomize → Cluster → Route → Synthesize → Lint]
 
 ## Changelog
 
-- `2026-05-16` — v1.1. Split into two repos: `quant-principles` (wiki) and `quant-tools` (programmatic). Updated architecture diagram and file inventory.
+- `2026-05-16` — v1.1. Split into two repos: `macro-principles` (wiki) and `macro-tools` (programmatic). Updated architecture diagram and file inventory.
 - `2026-05-16` — v1.0. Initial blueprint created. Documented existing wiki, portfolio, and conceptual signaling architecture.
