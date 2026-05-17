@@ -1,0 +1,120 @@
+# allocations.yaml — Asset class definitions, neutral weights, and tilt vectors.
+# Generic All Weather base — no account-specific overlays here.
+# Vanilain's locked assets (GOOGL, 401k, house) handled in rebalance overlay.
+
+asset_classes:
+  us_equity:
+    environment: [rising_growth]
+    representative_ticker: VOO
+    tickers: [VOO, VTI, NVDA, MSFT, META, AAPL, INTC, PLTR, CEG, CLS, CIEN, CRDO, LITE, GMED, PGR, CB, RKLB, PL, RDW, ITA]
+  intl_equity:
+    environment: [rising_growth]
+    representative_ticker: VXUS
+    tickers: [VXUS, EMXC, SCHY, SPGM, ASX, EIS]
+  china_equity:
+    environment: [rising_growth]
+    representative_ticker: MCHI
+    tickers: [MCHI, CNXT, ASHS, EWH, CQQQ, TCEHY, BILI, GDS, XPEV, BYDDY, ASMVY]
+  gold:
+    environment: [rising_inflation, falling_growth]
+    representative_ticker: GLD
+    tickers: [GLD, IAU, SGOL, IAUM, SPPP, PALL]
+  energy_commodities:
+    environment: [rising_inflation]
+    representative_ticker: UCO
+    tickers: [UCO, USO, XLE, VDE]
+  crypto:
+    environment: [rising_inflation]  # personal overlay — hard asset proxy
+    representative_ticker: BTC
+    tickers: [BTC, ETC, DOGE, SHIB, ETH, LTC, BCH, BSV]
+  bonds:
+    environment: [falling_growth, falling_inflation]
+    representative_ticker: TLT
+    tickers: [TLT, IEF]
+  theme_equity:
+    environment: [rising_growth]
+    representative_ticker: HUMN
+    tickers: [HUMN, KOID, BOTT, XBI, MSBT, PIO, FLY]
+  cash:
+    environment: [falling_inflation]
+    representative_ticker: SGOV
+    tickers: []
+
+# Neutral allocation — Dalio All Weather adjusted for household.
+# Household already ~60%+ US equity (GOOGL, 401k, house) → tradeable underweights US equity.
+neutral:
+  us_equity: 12        # LOW — household already 60%+ US equity
+  intl_equity: 15      # geographic diversifier
+  china_equity: 10     # bloc diversifier
+  gold: 12             # All Weather rising_inflation quadrant
+  energy_commodities: 10  # rising_inflation + geopolitical hedge
+  crypto: 8            # non-correlated hard asset (personal overlay)
+  bonds: 8             # falling_growth quadrant
+  theme_equity: 5      # optionality / AI
+  cash: 20             # dry powder + falling_inflation
+
+# Regime tilts — additive to neutral, in percentage points.
+# Positive = overweight, negative = underweight.
+# Inflation keys use stable_inflation / acute_inflation to avoid clash with stress stable/acute.
+tilts:
+  cycle_stage:
+    early:
+      us_equity: 5
+      bonds: -3
+      gold: -3
+      cash: -5
+    mid:
+      us_equity: 3
+      bonds: -2
+      gold: -2
+      cash: -3
+    late:
+      us_equity: -5
+      gold: 5
+      cash: 3
+      bonds: -3
+    crisis:
+      us_equity: -10
+      gold: 8
+      cash: 5
+      energy_commodities: 3
+      bonds: -3
+
+  stress_direction:
+    stable: {}
+    deteriorating:
+      us_equity: -3
+      gold: 2
+      cash: 3
+      bonds: -2
+    acute:
+      us_equity: -8
+      gold: 5
+      cash: 5
+      bonds: -3
+      crypto: -2
+
+  inflation_regime:
+    disinflation:
+      bonds: 5
+      gold: -2
+      energy_commodities: -3
+      cash: 2
+    stable: {}
+    rising:
+      gold: 3
+      energy_commodities: 3
+      bonds: -5
+      cash: -3
+    acute:
+      gold: 5
+      energy_commodities: 5
+      bonds: -8
+      cash: -5
+
+# Rebalancing config
+rebalance:
+  band_threshold: 2.0        # skip if drift < 2% of portfolio
+  max_single_trade_pct: 15.0 # cap any single trade at 15% of portfolio
+  prefer_tax_loss: true      # when selling, prefer tickers with unrealized losses
+  prefer_broad_etf: true     # when buying, prefer the first (broadest) ticker in class

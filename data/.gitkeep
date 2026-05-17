@@ -1,0 +1,9 @@
+# Data directory
+
+This directory holds runtime data:
+- `scorecard.json` — latest macro regime readings
+- `holdings.json` — synced portfolio snapshot
+- `history/` — historical scorecards
+- `.env` — API keys (not committed)
+
+All files here are generated at runtime. Do not commit.

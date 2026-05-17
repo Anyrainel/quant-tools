@@ -1,0 +1,30 @@
+[project]
+name = "quant-tools"
+version = "0.1.0"
+description = "Programmatic inputs for quant system — signals, portfolio, backtests"
+requires-python = ">=3.12"
+dependencies = [
+    "click>=8.0",
+    "fredapi>=0.5",
+    "yfinance>=0.2",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0",
+    "pandas>=2.0",
+    "keyring>=25.0",
+    "keyrings-alt>=5.0",
+    "pycryptodome>=3.20",
+    "robin_stocks>=3.0",
+    "pyetrade>=2.1",
+    "pyotp>=2.9",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E741"]
+
+[tool.ruff.format]
+quote-style = "double"

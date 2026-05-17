@@ -1,0 +1,230 @@
+indicators:
+  # Q1: Debt Cycle Stage
+  debt_revenue:
+    name: "US Debt / Revenue"
+    question: q1
+    source: fred
+    series: [GFDEBTN, FGRECPT]
+    frequency: quarterly
+    unit: "%"
+    compute: "ratio"  # GFDEBTN / FGRECPT * 100
+
+  r_minus_g:
+    name: "r - g spread"
+    question: q1
+    source: fred
+    series: [DGS10]
+    frequency: daily
+    unit: "pp"
+    compute: "subtract_constant"
+    g_estimate: 3.9  # CBO nominal growth estimate, update quarterly
+
+  primary_deficit_revenue:
+    name: "Primary Deficit / Revenue"
+    question: q1
+    source: fred
+    series: [FYFSD, FGRECPT]
+    frequency: annual
+    unit: "%"
+    compute: "ratio_neg"  # -FYFSD / FGRECPT * 100 (deficit is negative)
+
+  fed_bs_gdp:
+    name: "Fed Balance Sheet / GDP"
+    question: q1
+    source: fred
+    series: [WALCL, GDP]
+    frequency: quarterly
+    unit: "%"
+    compute: "ratio_bs"  # WALCL (millions) / GDP (billions) / 1000 * 100
+
+  # Q2: Near-Term Stress Direction
+  credit_spread:
+    name: "Moody's Baa Spread (BAA10Y)"
+    weight: 3
+    question: q2
+    source: fred
+    series: [BAA10Y]  # Baa yield minus 10yr; starts 1986; BAMLC0A0CM only goes back to 2023 on FRED
+    frequency: daily
+    unit: "%"
+    compute: "direct"
+
+  vix:
+    name: "VIX"
+    weight: 3
+    question: q2
+    source: yfinance
+    ticker: "^VIX"
+    frequency: daily
+    unit: "index"
+    compute: "direct"
+
+  yield_curve:
+    name: "2-10 Yield Curve"
+    weight: 2
+    question: q2
+    source: fred
+    series: [T10Y2Y]
+    frequency: daily
+    unit: "pp"
+    compute: "direct"
+
+  dxy:
+    name: "DXY Dollar Index"
+    weight: 1
+    question: q2
+    source: yfinance
+    ticker: "DX-Y.NYB"
+    frequency: daily
+    unit: "index"
+    compute: "direct"
+
+  gold_oil_ratio:
+    name: "Gold / Oil Ratio"
+    weight: 1
+    question: q2
+    source: yfinance
+    tickers: ["GC=F", "BZ=F"]
+    frequency: daily
+    unit: "ratio"
+    compute: "ratio_yf"  # GC=F / BZ=F
+
+  # Q3: Inflation Regime
+  core_pce_yoy:
+    name: "Core PCE YoY"
+    question: q3
+    source: fred
+    series: [PCEPILFE]
+    frequency: monthly
+    unit: "%"
+    compute: "yoy_pct"
+
+  breakeven_5y:
+    name: "5Y Breakeven Inflation"
+    question: q3
+    source: fred
+    series: [T5YIE]
+    frequency: daily
+    unit: "%"
+    compute: "direct"
+
+  brent:
+    name: "Brent Oil"
+    question: q3
+    source: yfinance
+    ticker: "BZ=F"
+    frequency: daily
+    unit: "$/bbl"
+    compute: "direct"
+
+  gold_yoy:
+    name: "Gold YoY Return"
+    question: q3
+    source: yfinance
+    ticker: "GC=F"
+    frequency: daily
+    unit: "%"
+    compute: "yoy_pct_yf"
+
+  m2_yoy:
+    name: "M2 YoY Growth"
+    question: q3
+    source: fred
+    series: [M2SL]
+    frequency: monthly
+    unit: "%"
+    compute: "yoy_pct"
+
+  # Q1 addition (indicator #15)
+  credit_gap:
+    name: "BIS Credit-to-GDP Gap"
+    question: q1
+    source: fred
+    series: [QUSPAM770A]
+    frequency: quarterly
+    unit: "pp"
+    compute: "gap_10y_rolling"  # current - 10yr rolling avg
+
+  # Q2 addition (indicator #16)
+  epu:
+    name: "Economic Policy Uncertainty"
+    question: q2
+    source: fred
+    series: [USEPUINDXM]  # Baker-Bloom-Davis monthly composite via FRED
+    frequency: monthly
+    unit: "index"
+    compute: "direct"
+    weight: 2
+
+thresholds:
+  cycle_stage:
+    early:
+      debt_revenue: [0, 300]
+      r_minus_g: [-999, -2]
+      fed_bs_gdp: [0, 15]
+      primary_deficit_revenue: [0, 10]
+      credit_gap: [-999, 2]
+    mid:
+      debt_revenue: [300, 500]
+      r_minus_g: [-2, 0]
+      fed_bs_gdp: [15, 25]
+      primary_deficit_revenue: [10, 20]
+      credit_gap: [2, 5]       # private credit slightly above trend
+    late:
+      debt_revenue: [500, 700]
+      r_minus_g: [-0.5, 1.5]
+      fed_bs_gdp: [20, 40]
+      primary_deficit_revenue: [20, 60]
+      credit_gap: [5, 18]      # elevated private credit: bubble forming; raised from [2,10]
+    crisis:
+      debt_revenue: [600, 9999]
+      r_minus_g: [1.5, 9999]
+      fed_bs_gdp: [40, 9999]
+      primary_deficit_revenue: [60, 9999]
+      credit_gap: [18, 9999]   # private credit bubble: >18pp above 10yr trend; raised from [10,9999]
+
+  stress_direction:
+    stable:
+      credit_spread: [0, 2.0]       # BAA10Y in %; was [0,200] for BAMLC0A0CM
+      vix: [0, 20]
+      yield_curve: [-0.5, 1.5]      # narrowed: extreme steepness from Fed cuts is not 'stable'
+      dxy: [0, 104]
+      gold_oil_ratio: [0, 20]
+      epu: [0, 150]
+    deteriorating:
+      credit_spread: [2.0, 3.0]     # BAA10Y 2-3%: moderate spread widening
+      vix: [20, 30]                 # lowered from 35
+      yield_curve: [-100, 0]
+      dxy: [104, 115]
+      gold_oil_ratio: [20, 35]
+      epu: [150, 350]
+    acute:
+      credit_spread: [3.0, 9999]    # BAA10Y >3%: crisis spread (Lehman 5.5, COVID 3.9, GFC 3.6)
+      vix: [30, 9999]               # lowered from 35
+      dxy: [115, 9999]
+      gold_oil_ratio: [35, 9999]
+      epu: [350, 9999]
+
+  inflation_regime:
+    disinflation:
+      core_pce_yoy: [0, 2]
+      breakeven_5y: [-999, 2]    # include negative (deflation panic; Oct 2008 = -0.96%)
+      m2_yoy: [-999, 3]
+      gold_yoy: [-999, 5]
+      # brent removed from Q3: oil level is a poor core-inflation proxy;
+      # captured in Q2 via gold_oil_ratio. Caused mis-votes: 2011 $115 brent / core PCE 1.84%
+    stable:
+      core_pce_yoy: [2, 3]
+      breakeven_5y: [2, 2.5]
+      m2_yoy: [3, 6]
+      gold_yoy: [5, 25]          # widened from [5,15]: gold up <25% in fear rally context (2008: 17%, 2020: 23%)
+    rising:
+      core_pce_yoy: [3, 5]
+      breakeven_5y: [2.5, 4]
+      m2_yoy: [6, 9999]
+      gold_yoy: [25, 9999]       # raised from 15; non-overlapping with stable [5,25]
+    acute:
+      core_pce_yoy: [5, 999]
+      m2_yoy: [10, 999]          # raised from 8: M2 growth 8-10% is 'rising', not 'acute'
+      breakeven_5y: [3.5, 999]
+      gold_yoy: [30, 9999]       # raised from 25
+      # brent removed (see note in disinflation above)

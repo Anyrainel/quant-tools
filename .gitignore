@@ -1,0 +1,14 @@
+.env
+.env.*
+data/*
+!data/.gitkeep
+history/*
+!history/.gitkeep
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+uv.lock
+*.egg-info/
+dist/
+build/
